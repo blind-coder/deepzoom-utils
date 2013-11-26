@@ -223,7 +223,7 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 			cat > ${cmd} <<-EOF
 				SECONDS=0
 				convert ${pic} -crop ${TILESIZE}x${TILESIZE} -set filename:tile "%[fx:page.x/${TILESIZE}+${x}]_%[fx:page.y/${TILESIZE}+${y}]" map_files/${level}/%[filename:tile].${OUTPUTFORMAT}
-				echo "- Coapped ${pic}+${x}+${y} in ${SECONDS}s"
+				echo "- Cropped ${pic}+${x}+${y} in ${SECONDS}s"
 			EOF
 			THREAD_CMDS="${THREAD_CMDS} ${cmd}"
 		done
