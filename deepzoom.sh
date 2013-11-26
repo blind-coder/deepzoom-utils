@@ -139,7 +139,7 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 			cat >${cmd} <<-EOF
 				SECONDS=0
 				convert ${pic} -resize 50% "work-${pic#${src}-}"
-				echo "- Resized ${pic} in ${SECONDS}s"
+				echo "- Resized ${pic} in \${SECONDS}s"
 			EOF
 			THREAD_CMDS="${THREAD_CMDS} ${cmd}"
 		done
@@ -167,7 +167,7 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 				[ -f "${br}" ] && echo -n " -page +${tlw}+${tlh} ${br}" >> ${cmd}
 				echo " -layers merge +repage ${output}" >> ${cmd}
 				${cmd}
-				echo "echo '- Resized ${output} in ${SECONDS}s'" >> ${cmd}
+				echo "echo '- Resized ${output} in \${SECONDS}s'" >> ${cmd}
 				delme=""
 				delme="${delme} ${tl} ${tr} ${bl} ${br}"
 				delme="${delme//${output}/}"
@@ -197,13 +197,13 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 			echo -n "Resizing work.${SUFFIX} ..."
 			SECONDS=0
 			convert work.${SUFFIX} -resize 50% work.${SUFFIX}
-			echo " done in ${SECONDS}s"
+			echo " done in \${SECONDS}s"
 		fi
 
 		echo -n "Cropping work.${SUFFIX} ..."
 		SECONDS=0
 		convert work.${SUFFIX} -crop ${TILESIZE}x${TILESIZE} -set filename:tile "%[fx:page.x/${TILESIZE}]_%[fx:page.y/${TILESIZE}]" map_files/${level}/%[filename:tile].${OUTPUTFORMAT}
-		echo " done in ${SECONDS}s"
+		echo " done in \${SECONDS}s"
 	else
 		echo "Cropping ${src}-*-*.${SUFFIX} ..."
 		read w h < <( identify -format "%w %h" ${src}-0-0.${SUFFIX} )
@@ -223,7 +223,7 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 			cat > ${cmd} <<-EOF
 				SECONDS=0
 				convert ${pic} -crop ${TILESIZE}x${TILESIZE} -set filename:tile "%[fx:page.x/${TILESIZE}+${x}]_%[fx:page.y/${TILESIZE}+${y}]" map_files/${level}/%[filename:tile].${OUTPUTFORMAT}
-				echo "- Cropped ${pic}+${x}+${y} in ${SECONDS}s"
+				echo "- Cropped ${pic}+${x}+${y} in \${SECONDS}s"
 			EOF
 			THREAD_CMDS="${THREAD_CMDS} ${cmd}"
 		done
