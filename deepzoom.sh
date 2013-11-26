@@ -81,8 +81,6 @@ if ls -U work*${SUFFIX} >/dev/null 2>&1 ; then
 	exit ${EXIT_ERROR}
 fi
 
-. functions.inc.sh
-
 trap "kill 0" SIGINT SIGTERM EXIT # kill all subshells on exit
 trap "kill -STOP 0" SIGSTOP
 trap "kill -CONT 0" SIGCONT
@@ -232,4 +230,3 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 		echo " done"
 	fi
 done 
-createOverlaysJSON
