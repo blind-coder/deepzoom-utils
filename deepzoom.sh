@@ -29,6 +29,23 @@ function usage {
 		-s suffix    specify input image suffix (default: ${SUFFIX})
 		-t threads   specify how many parallel threads to run (default: ${THREADS})
 		-h           show this help
+
+		This script takes images that are tiles of a larger image and creates
+		output files suitable for use with OpenSeadragon.
+
+		Example:
+		You have four files that make up a bigger image, all sized 50000x50000 px:
+
+		bigimage-0-0.png      bigimage-50000-0.png
+		bigimage-0-50000.png  bigimage-50000-50000.png
+
+		To create the tiles and map.xml file from this, you'd run:
+		
+		${SCRIPTNAME} -p bigimage -s png
+
+		To enable multithreading, output tilesize and explicit output format:
+
+		${SCRIPTNAME} -p bigimage -s png -o jpg -a 256 -t 4
 	EOF
 	[[ ${#} -eq 1 ]] && exit ${1} || exit ${EXIT_FAILURE}
 }
