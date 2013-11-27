@@ -165,7 +165,7 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 				[ -f "${br}" ] && echo -n " -page +${tlw}+${tlh} ${br}" >> ${cmd}
 				echo " -layers merge +repage ${output}" >> ${cmd}
 				${cmd}
-				echo "echo '- Resized ${output} in \${SECONDS}s'" >> ${cmd}
+				echo "echo \"- Montaged ${output} in \${SECONDS}s\"" >> ${cmd}
 				delme=""
 				delme="${delme} ${tl} ${tr} ${bl} ${br}"
 				delme="${delme//${output}/}"
