@@ -81,7 +81,7 @@ if ls -U work*${SUFFIX} >/dev/null 2>&1 ; then
 	exit ${EXIT_ERROR}
 fi
 
-trap "kill 0" SIGINT SIGTERM EXIT # kill all subshells on exit
+trap "kill 0; exit" SIGINT SIGTERM EXIT # kill all subshells on exit
 trap "kill -STOP 0" SIGSTOP
 trap "kill -CONT 0" SIGCONT
 
@@ -164,7 +164,6 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 				[ -f "${bl}" ] && echo -n " -page +0+${tlh} ${bl}" >> ${cmd}
 				[ -f "${br}" ] && echo -n " -page +${tlw}+${tlh} ${br}" >> ${cmd}
 				echo " -layers merge +repage ${output}" >> ${cmd}
-				${cmd}
 				echo "echo \"- Montaged ${output} in \${SECONDS}s\"" >> ${cmd}
 				delme=""
 				delme="${delme} ${tl} ${tr} ${bl} ${br}"
@@ -195,13 +194,13 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 			echo -n "Resizing work.${SUFFIX} ..."
 			SECONDS=0
 			convert work.${SUFFIX} -resize 50% work.${SUFFIX}
-			echo " done in \${SECONDS}s"
+			echo " done in ${SECONDS}s"
 		fi
 
 		echo -n "Cropping work.${SUFFIX} ..."
 		SECONDS=0
 		convert work.${SUFFIX} -crop ${TILESIZE}x${TILESIZE} -set filename:tile "%[fx:page.x/${TILESIZE}]_%[fx:page.y/${TILESIZE}]" map_files/${level}/%[filename:tile].${OUTPUTFORMAT}
-		echo " done in \${SECONDS}s"
+		echo " done in ${SECONDS}s"
 	else
 		echo "Cropping ${src}-*-*.${SUFFIX} ..."
 		read w h < <( identify -format "%w %h" ${src}-0-0.${SUFFIX} )
