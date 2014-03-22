@@ -15,48 +15,19 @@ MAGICK_TEMPORARY_PATH=.
 TILESIZE=512
 MONTAGESTEP=1
 THREADS=1
+VERBOSE=n
 PREFIX=current
 SUFFIX=png
 OUTPUTFORMAT=jpg
 
-function usage {
-	echo "Usage: ${SCRIPTNAME} [-a tilesize] [-o jpg|png] [-p prefix] [-s suffix] [-t threads] [-h]" >&2
-	cat >&2 <<-EOF
-		Parameters:
-		-a tilesize  specify output tilesize in pixels (default: ${TILESIZE})
-		-o jpg|png   specify output format (default: ${OUTPUTFORMAT})
-		-p prefix    specify input image prefix (default: ${PREFIX})
-		-s suffix    specify input image suffix (default: ${SUFFIX})
-		-t threads   specify how many parallel threads to run (default: ${THREADS})
-		-h           show this help
-
-		This script takes images that are tiles of a larger image and creates
-		output files suitable for use with OpenSeadragon.
-
-		Example:
-		You have four files that make up a bigger image, all sized 50000x50000 px:
-
-		bigimage-0-0.png      bigimage-50000-0.png
-		bigimage-0-50000.png  bigimage-50000-50000.png
-
-		To create the tiles and map.xml file from this, you'd run:
-		
-		${SCRIPTNAME} -p bigimage -s png
-
-		To enable multithreading, output tilesize and explicit output format:
-
-		${SCRIPTNAME} -p bigimage -s png -o jpg -a 256 -t 4
-	EOF
-	[[ ${#} -eq 1 ]] && exit ${1} || exit ${EXIT_FAILURE}
-}
-
-while getopts 'a:o:p:s:t:h' OPTION ; do
+while getopts 'a:o:p:s:t:vh' OPTION ; do
 	case ${OPTION} in
 		a)  TILESIZE=${OPTARG} ;;
 		o)  OUTPUTFORMAT=${OPTARG} ;;
 		p)  PREFIX=${OPTARG} ;;
 		s)  SUFFIX=${OPTARG} ;;
 		t)  THREADS=${OPTARG} ;;
+		v)	VERBOSE=y ;;
 		h)	usage ${EXIT_SUCCESS} ;;
 		\?)	echo "unknown option \"-${OPTARG}\"." >&2
 			usage ${EXIT_ERROR}
@@ -73,15 +44,16 @@ done
 # skip parsed options
 shift $(( OPTIND - 1 ))
 
-if ls -U work*${SUFFIX} >/dev/null 2>&1 ; then
-	echo "work*${SUFFIX} exists!" >&2
-	echo "This script uses work*${OUTPUTFORMAT} files as temporary files." >&2
-	echo "Please remove these files and try again:" >&2
-	echo work*${SUFFIX}
+if [ -f "work.${OUTPUTFORMAT}" ]; then
+	echo "work.${OUTPUTFORMAT} exists!" >&2
+	echo "This script uses work*.${OUTPUTFORMAT} files as temporary files." >&2
+	echo "Please remove these files and try again." >&2
 	exit ${EXIT_ERROR}
 fi
 
-trap "kill 0; exit" SIGINT SIGTERM EXIT # kill all subshells on exit
+. functions.inc.sh
+
+trap "kill 0" SIGINT SIGTERM EXIT # kill all subshells on exit
 trap "kill -STOP 0" SIGSTOP
 trap "kill -CONT 0" SIGCONT
 
@@ -118,39 +90,36 @@ EOF
 # calculate necessary levels
 # levels = ceil(log(max(width, height)) / log(2))
 BC_CEIL='define ceil(x) { auto savescale; savescale = scale; scale = 0; if (x>0) { if (x%1>0) result = x+(1-(x%1)) else result = x } else result = -1*floor(-1*x);  scale = savescale; return result }'
-#BC_CEIL="define ceil(x) { if (x>0) { if (x%1>0) return x+(1-(x%1)) else return x } else return -1*floor(-1*x) }\n"
-BC_FLOOR="define floor(x) { if (x>0) return x-(x%1) else return -1*ceil(-1*x) }"
-[ $((${maxx}+${w})) -gt $((${maxy}+${h})) ] && i=$((${maxx}+${w})) || i=$((${maxy}+${h}))
-read startLevel < <( echo -e "${BC_FLOOR}\n${BC_CEIL}\nceil(l(${i})/l(2))" | bc -l | sed -e 's,\..*$,,' )
+[ ${maxx} -gt ${maxy} ] && i=${maxx} || i=${maxy}
+read startLevel < <( echo -e "${BC_CEIL}\nceil(l(${i})/l(2))" | bc -l | sed -e 's,\..*$,,' )
 
-# checked for this before, but make sure anyway.
-rm -f work*${SUFFIX}
-src="${PREFIX}" # will be set to "work" after first iteration
+rm -f work.${SUFFIX}
+src="${PREFIX}" # set to "work" after first iteration
 
 for level in $( seq ${startLevel} -1 0 ) ; do
 	echo "Level: ${level}"
 	resized=0
 
 	if [ ! -f "work.${SUFFIX}" -a ${level} -lt ${startLevel} ] ; then # do not resize on first iteration
-		echo "Resizing ${src}-*-*.${SUFFIX} ..."
-		THREAD_CMDS=""
-		for pic in ${src}-*-*.${SUFFIX} ; do
-			cmd="$(mktemp)"
-			cat >${cmd} <<-EOF
+		echo -n "Resizing ${src}-*-*.${SUFFIX} ..."
+		for THREAD in $( seq 0 $((${THREADS}-1)) ) ; do (
+			numPic=0
+			for pic in ${src}-*-*.${SUFFIX} ; do
+				numPic=$((${numPic}+1))
+				[ $(( ${numPic} % ${THREADS} )) -eq ${THREAD} ] || continue
 				SECONDS=0
 				convert ${pic} -resize 50% "work-${pic#${src}-}"
-				echo "- Resized ${pic} in \${SECONDS}s"
-			EOF
-			THREAD_CMDS="${THREAD_CMDS} ${cmd}"
+				echo -n " T:${THREAD} ${pic}(${SECONDS}s)"
+			done ) &
 		done
-		echo ${THREAD_CMDS} | tr ' ' '\n' | xargs -P${THREADS} -n1 /bin/bash
-		rm -f ${THREAD_CMDS}
-		echo "done"
+		wait
+		echo " done"
 		resized=1
 		src="work"
 
-		echo "Montaging ... "
-		THREAD_CMDS=""
+		echo -n "Montaging ... "
+		SECONDS=0
+		delme=""
 		for x in $( seq 0 $((${INPUTTILESIZE}*${MONTAGESTEP}*2)) ${maxx} ); do
 			for y in $( seq 0 $((${INPUTTILESIZE}*${MONTAGESTEP}*2)) ${maxy} ); do
 				tl="work-${x}-${y}.${SUFFIX}"
@@ -159,25 +128,21 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 				br="work-$((${x}+(${INPUTTILESIZE}*${MONTAGESTEP})))-$((${y}+(${INPUTTILESIZE}*${MONTAGESTEP}))).${SUFFIX}"
 				output="work-${x}-${y}.${SUFFIX}"
 				read tlw tlh < <( identify -format "%w %h" ${tl} )
-				cmd="$(mktemp)"
-				echo "SECONDS=0" > ${cmd}
-				echo -n "convert xc:black -page +0+0 ${tl}" >> ${cmd}
-				[ -f "${tr}" ] && echo -n " -page +${tlw}+0 ${tr}" >> ${cmd}
-				[ -f "${bl}" ] && echo -n " -page +0+${tlh} ${bl}" >> ${cmd}
-				[ -f "${br}" ] && echo -n " -page +${tlw}+${tlh} ${br}" >> ${cmd}
-				echo " -layers merge +repage ${output}" >> ${cmd}
-				echo "echo \"- Montaged ${output} in \${SECONDS}s\"" >> ${cmd}
-				delme=""
+				cmd="convert xc:black -page +0+0 ${tl}"
+				[ -f "${tr}" ] && cmd="${cmd} -page +${tlw}+0 ${tr}"
+				[ -f "${bl}" ] && cmd="${cmd} -page +0+${tlh} ${bl}"
+				[ -f "${br}" ] && cmd="${cmd} -page +${tlw}+${tlh} ${br}"
+				cmd="${cmd} -layers merge +repage ${output}"
+				SECONDS=0
+				${cmd}
+				echo -n "${output} (${SECONDS}s) "
 				delme="${delme} ${tl} ${tr} ${bl} ${br}"
 				delme="${delme//${output}/}"
-				echo "rm -f ${delme}" >> ${cmd}
-				THREAD_CMDS="${THREAD_CMDS} ${cmd}"
 			done
 		done
-		echo ${THREAD_CMDS} | tr ' ' '\n' | xargs -P${THREADS} -n1 /bin/bash
-		rm -f ${THREAD_CMDS}
 		MONTAGESTEP=$((${MONTAGESTEP}*2))
-		echo "done"
+		rm -f ${delme}
+		echo " done"
 
 		numWorks=0
 		for x in work-*-*.${SUFFIX} ; do
@@ -204,30 +169,30 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 		convert work.${SUFFIX} -crop ${TILESIZE}x${TILESIZE} -set filename:tile "%[fx:page.x/${TILESIZE}]_%[fx:page.y/${TILESIZE}]" map_files/${level}/%[filename:tile].${OUTPUTFORMAT}
 		echo " done in ${SECONDS}s"
 	else
-		echo "Cropping ${src}-*-*.${SUFFIX} ..."
+		echo -n "Cropping ${src}-*-*.${SUFFIX} ... "
 		read w h < <( identify -format "%w %h" ${src}-0-0.${SUFFIX} )
 		w=$((${w}/${TILESIZE}))
 		h=$((${h}/${TILESIZE}))
-		THREAD_CMDS=""
-		for pic in ${src}-*-*.${SUFFIX} ; do
-			x=${pic#${src}-}
-			x=${x%-*}
-			x=$((((${x}/(${MONTAGESTEP}))/${INPUTTILESIZE})*${w}))
+		for THREAD in $( seq 0 $((${THREADS}-1)) ) ; do (
+			numPic=0
+			for pic in ${src}-*-*.${SUFFIX} ; do
+				numPic=$((${numPic}+1))
+				[ $(( ${numPic} % ${THREADS} )) -eq ${THREAD} ] || continue
+				x=${pic#${src}-}
+				x=${x%-*}
+				x=$((((${x}/(${MONTAGESTEP}))/${INPUTTILESIZE})*${w}))
 
-			y=${pic%.${SUFFIX}}
-			y=${y##*-}
-			y=$((((${y}/(${MONTAGESTEP}))/${INPUTTILESIZE})*${h}))
+				y=${pic%.${SUFFIX}}
+				y=${y##*-}
+				y=$((((${y}/(${MONTAGESTEP}))/${INPUTTILESIZE})*${h}))
 
-			cmd="$(mktemp)"
-			cat > ${cmd} <<-EOF
 				SECONDS=0
 				convert ${pic} -crop ${TILESIZE}x${TILESIZE} -set filename:tile "%[fx:page.x/${TILESIZE}+${x}]_%[fx:page.y/${TILESIZE}+${y}]" map_files/${level}/%[filename:tile].${OUTPUTFORMAT}
-				echo "- Cropped ${pic}+${x}+${y} in \${SECONDS}s"
-			EOF
-			THREAD_CMDS="${THREAD_CMDS} ${cmd}"
+				echo -n " T:${THREAD} ${pic}+${x}+${y}(${SECONDS}s)"
+			done ) &
 		done
-		echo ${THREAD_CMDS} | tr ' ' '\n' | xargs -P${THREADS} -n1 /bin/bash
-		rm -f ${THREAD_CMDS}
+		wait
 		echo " done"
 	fi
 done 
+createOverlaysJSON
