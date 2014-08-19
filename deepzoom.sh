@@ -161,7 +161,7 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 				read tlw tlh < <( identify -format "%w %h" ${tl} )
 				cmd="$(mktemp)"
 				echo "SECONDS=0" > ${cmd}
-				echo -n "convert xc:black -page +0+0 ${tl}" >> ${cmd}
+				echo -n "convert xc:transparent -background transparent -page +0+0 ${tl}" >> ${cmd}
 				[ -f "${tr}" ] && echo -n " -page +${tlw}+0 ${tr}" >> ${cmd}
 				[ -f "${bl}" ] && echo -n " -page +0+${tlh} ${bl}" >> ${cmd}
 				[ -f "${br}" ] && echo -n " -page +${tlw}+${tlh} ${br}" >> ${cmd}
