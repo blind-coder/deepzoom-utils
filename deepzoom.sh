@@ -206,7 +206,7 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 
 		echo -n "Cropping work.${SUFFIX} ..."
 		SECONDS=0
-		convert work.${SUFFIX} -crop ${TILESIZE}x${TILESIZE} -set filename:tile "%[fx:page.x/${TILESIZE}]_%[fx:page.y/${TILESIZE}]" map_files/${level}/%[filename:tile].${OUTPUTFORMAT}
+		convert work.${SUFFIX} -transparent black -crop ${TILESIZE}x${TILESIZE} -set filename:tile "%[fx:page.x/${TILESIZE}]_%[fx:page.y/${TILESIZE}]" map_files/${level}/%[filename:tile].${OUTPUTFORMAT}
 		echo " done in ${SECONDS}s"
 	else
 		echo "Cropping ${src}-*-*.${SUFFIX} ..."
@@ -226,7 +226,7 @@ for level in $( seq ${startLevel} -1 0 ) ; do
 			cmd="$(mktemp)"
 			cat > ${cmd} <<-EOF
 				SECONDS=0
-				convert ${pic} -crop ${TILESIZE}x${TILESIZE} -set filename:tile "%[fx:page.x/${TILESIZE}+${x}]_%[fx:page.y/${TILESIZE}+${y}]" map_files/${level}/%[filename:tile].${OUTPUTFORMAT}
+				convert ${pic} -transparent black -crop ${TILESIZE}x${TILESIZE} -set filename:tile "%[fx:page.x/${TILESIZE}+${x}]_%[fx:page.y/${TILESIZE}+${y}]" map_files/${level}/%[filename:tile].${OUTPUTFORMAT}
 				echo "- Cropped ${pic}+${x}+${y} in \${SECONDS}s"
 			EOF
 			THREAD_CMDS="${THREAD_CMDS} ${cmd}"
