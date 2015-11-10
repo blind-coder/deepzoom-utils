@@ -28,6 +28,8 @@ function usage {
 		-p prefix    specify input image prefix (default: ${PREFIX})
 		-s suffix    specify input image suffix (default: ${SUFFIX})
 		-t threads   specify how many parallel threads to run (default: ${THREADS})
+		-T path      specify the path where temporary files are held (default: ${MAGICK_TEMPORARY_PATH})
+		             Warning, these can grow very large! Do not use anything on / or /tmp!
 		-h           show this help
 
 		This script takes images that are tiles of a larger image and creates
@@ -46,17 +48,20 @@ function usage {
 		To enable multithreading, output tilesize and explicit output format:
 
 		${SCRIPTNAME} -p bigimage -s png -o jpg -a 256 -t 4
+
+		PATH: ${PATH}
 	EOF
 	[[ ${#} -eq 1 ]] && exit ${1} || exit ${EXIT_FAILURE}
 }
 
-while getopts 'a:o:p:s:t:h' OPTION ; do
+while getopts 'a:o:p:s:t:T:h' OPTION ; do
 	case ${OPTION} in
 		a)  TILESIZE=${OPTARG} ;;
 		o)  OUTPUTFORMAT=${OPTARG} ;;
 		p)  PREFIX=${OPTARG} ;;
 		s)  SUFFIX=${OPTARG} ;;
 		t)  THREADS=${OPTARG} ;;
+		T)	MAGICK_TEMPORARY_PATH="${OPTARG}" ;;
 		h)	usage ${EXIT_SUCCESS} ;;
 		\?)	echo "unknown option \"-${OPTARG}\"." >&2
 			usage ${EXIT_ERROR}
